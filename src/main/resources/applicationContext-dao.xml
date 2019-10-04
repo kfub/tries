@@ -1,0 +1,233 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:context="http://www.springframework.org/schema/context" 
+	xmlns:p="http://www.springframework.org/schema/p"
+	xmlns:aop="http://www.springframework.org/schema/aop" 
+	xmlns:tx="http://www.springframework.org/schema/tx"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-4.0.xsd
+	http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-4.0.xsd
+	http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-4.0.xsd 
+	http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-4.0.xsd
+	http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util-4.0.xsd">
+		<!-- 扫描该包及其该包的子包 如果有@Service,@Component,@Repository,@Controller 这将这个类自动注入 -->
+     <context:component-scan base-package="org.ssm.dufy"></context:component-scan> 
+
+		<!-- 配置 读取properties文件 jdbc.properties -->
+	<context:property-placeholder location="classpath:jdbc.properties" />
+
+	
+	
+	<!-- 配置 数据源 -->
+	<bean id="dataSource" class="com.alibaba.druid.pool.DruidDataSource">
+		<property name="driverClassName" value="${jdbc.driver}" />
+		<property name="url" value="${jdbc.url}" />
+		<property name="username" value="${jdbc.username}" />
+		<property name="password" value="${jdbc.password}" />
+	</bean>
+	<!-- 扫描文件（自动注入） -->
+	<!-- 配置SqlSessionFactory -->
+	<bean class="org.mybatis.spring.SqlSessionFactoryBean">
+		<!-- 设置MyBatis核心配置文件 -->
+		<property name="configLocation" value="classpath:SqlMapConfig.xml" />
+		<!-- 设置数据源 -->
+		<property name="dataSource" ref="dataSource" />
+	</bean>
+	
+	<!-- 配置Mapper扫描 -->
+	<bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+		<!-- 设置Mapper扫描包 -->
+		<property name="basePackage" value="org.ssm.dufy.mapper" />
+	</bean>
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+<!-- 	 Shiro核心部件-非弹簧专用
+Shiro用于启用Web的应用程序的主要业务层对象（当没有Web环境时，请改用DefaultSecurityManager） -->
+    <!--  
+    1. 配置 SecurityManager!
+    -->     
+    <bean id="securityManager" class="org.apache.shiro.web.mgt.DefaultWebSecurityManager">
+        <property name="cacheManager" ref="cacheManager"/>
+        <property name="authenticator" ref="authenticator"></property>
+        
+        <property name="realms">
+        <!-- 多realm验证又先后顺序(从上到下) -->
+        	<list>
+    			<!--  <ref bean="shiroRealm"/> -->
+    			 <ref bean="testRealm"/>
+    			 <ref bean="secondRealm"/> 
+    		</list>
+        </property>
+        <!-- session 的时效 10秒后就失效了 -->
+        <property name="rememberMeManager.cookie.maxAge" value="10"></property>
+    </bean>
+
+ <!-- 
+    2. 配置 CacheManager. 缓存管理器
+    2.1 需要加入 ehcache 的 jar 包及配置文件. 
+    -->     
+    <bean id="cacheManager" class="org.apache.shiro.cache.ehcache.EhCacheManager">
+        <property name="cacheManagerConfigFile" value="classpath:ehcache.xml"/> 
+    </bean>
+    
+    <bean id="authenticator" class="org.apache.shiro.authc.pam.ModularRealmAuthenticator">
+    	<!-- 认证策略AtLeastOneSuccessfulStrategy只要其中一个认证通过就行 -->
+    	<property name="authenticationStrategy"> 
+    		<bean class="org.apache.shiro.authc.pam.AtLeastOneSuccessfulStrategy"></bean> 
+    		<!-- <bean class="org.apache.shiro.authc.pam.AllSuccessfulStrategy"></bean> -->
+    	</property>
+    	
+    </bean>
+
+    <!-- 
+    	3. 配置 Realm 
+    	3.1 直接配置实现了 org.apache.shiro.realm.Realm 接口的 bean
+    -->     
+ <!--    <bean id="shiroRealm" class="org.ssm.dufy.realms.ShiroRealm">
+    	 <property name="credentialsMatcher">
+    		<bean class="org.apache.shiro.authc.credential.HashedCredentialsMatcher">
+    		
+    			<property name="hashAlgorithmName" value="MD5"></property>
+    			 <property name="hashIterations" value="1024"></property> 
+    		</bean>
+    	</property> 
+    </bean> -->
+    <bean id="testRealm" class="org.ssm.dufy.realms.TestRealm">
+    	    <property name="credentialsMatcher">
+    		<bean class="org.apache.shiro.authc.credential.HashedCredentialsMatcher">
+    			<property name="hashAlgorithmName" value="MD5"></property>
+    			 <property name="hashIterations" value="1024"></property> 
+    		</bean>
+    	</property>  
+    </bean>
+    
+      <bean id="secondRealm" class="org.ssm.dufy.realms.SecondRealm">
+    	<property name="credentialsMatcher">
+    		<bean class="org.apache.shiro.authc.credential.HashedCredentialsMatcher">
+    			<property name="hashAlgorithmName" value="SHA1"></property>
+    			<property name="hashIterations" value="1024"></property>
+    		</bean>
+    	</property>
+    </bean>  
+    <!--  
+    4. 配置 LifecycleBeanPostProcessor. 可以自定的来调用配置在 Spring IOC 容器中 shiro bean 的生命周期方法. 
+    -->       
+    <bean id="lifecycleBeanPostProcessor" class="org.apache.shiro.spring.LifecycleBeanPostProcessor"/>
+
+    <!--  
+    5. 启用 IOC 容器中使用 shiro 的注解. 但必须在配置了 LifecycleBeanPostProcessor 之后才可以使用. 
+    -->     
+    <bean class="org.springframework.aop.framework.autoproxy.DefaultAdvisorAutoProxyCreator"
+          depends-on="lifecycleBeanPostProcessor"/>
+    <bean class="org.apache.shiro.spring.security.interceptor.AuthorizationAttributeSourceAdvisor">
+        <property name="securityManager" ref="securityManager"/>
+    </bean>
+
+   <!-- 
+    6. 配置 ShiroFilter. 
+    6.1 id 必须和 web.xml 文件中配置的 DelegatingFilterProxy 的 <filter-name> 一致.
+                      若不一致, 则会抛出: NoSuchBeanDefinitionException. 因为 Shiro 会来 IOC 容器中查找和 <filter-name> 名字对应的 filter bean.
+    -->     
+    <bean id="shiroFilter" class="org.apache.shiro.spring.web.ShiroFilterFactoryBean">
+        <property name="securityManager" ref="securityManager"/>
+        <!-- 登录页面 -->
+        <property name="loginUrl" value="/login.jsp"/>
+        <!-- 登录成功后的页面 -->
+        <property name="successUrl" value="/list.jsp"/>
+        <!-- 没有权限来这个页面 -->
+        <property name="unauthorizedUrl" value="/unauthorized.jsp"/>
+        
+         <!-- <property name="filterChainDefinitionMap" ref="filterChainDefinitionMap"></property> -->
+        
+        <!--  
+        	配置哪些页面需要受保护. 
+        	以及访问这些页面需要的权限. 
+        	1). anon 可以被匿名访问
+        	2). authc 必须认证(即登录)后才可能访问的页面. 
+        	3). logout 登出.
+        	4). roles 角色过滤器
+        -->
+          
+         <property name="filterChainDefinitions">
+            <value>
+              	/js/** = anon
+                /login.jsp = anon
+                /login2.jsp = anon
+                /login/test=anon
+                /logout = logout
+            	/user.jsp=authc,roles[users]
+            	/admin.jsp=authc,roles[zhangsan]
+            	/index.jsp=authc,roles[admin]
+                /list.jsp=user
+                /cookies = anon
+                /cookies1 = anon
+               
+                
+                # everything else requires authentication:
+                /** = authc
+            </value>
+        </property> 
+        
+    </bean>
+    
+    <!-- 配置一个 bean, 该 bean 实际上是一个 Map. 通过实例工厂方法的方式 -->
+    <!--  <bean id="filterChainDefinitionMap" 
+    	factory-bean="filterChainDefinitionMapBuilder" factory-method="filterChainDefinitionMap"></bean>
+    
+    <bean id="filterChainDefinitionMapBuilder"
+    	class="org.ssm.dufy.factory.FilterChainDefinitionMapBuilder"></bean>
+    
+    <bean id="shiroService"
+    	class="org.ssm.dufy.service.ShiroService"></bean> --> 
+	<bean id="shiroController" class="org.ssm.dufy.web.ShiroController">
+		
+	</bean>
+	<!--redis-->
+	<!-- 连接池配置 -->
+	<bean id="jedisPoolConfig" class="redis.clients.jedis.JedisPoolConfig" >
+		<!-- 最大连接数 -->
+		<property name="maxTotal" value="30"/>
+		<!-- 最大空闲连接数 -->
+		<property name="maxIdle" value="10"/>
+		<!-- 每次释放连接的最大数目 -->
+		<property name="numTestsPerEvictionRun" value="1024"/>
+		<!-- 释放连接的扫描间隔（毫秒） -->
+		<property name="timeBetweenEvictionRunsMillis" value="30000"/>
+		<!-- 连接最小空闲时间 -->
+		<property name="minEvictableIdleTimeMillis" value="1800000"/>
+		<!-- 连接空闲多久后释放, 当空闲时间>该值且空闲连接>最大空闲连接数时直接释放 -->
+		<property name="softMinEvictableIdleTimeMillis" value="10000"/>
+		<!-- 获取连接时的最大等待毫秒数,小于零:阻塞不确定的时间,默认-1 -->
+		<property name="maxWaitMillis" value="1500"/>
+		<!-- 在获取连接的时候检查有效性, 默认false -->
+		<property name="testOnBorrow" value="true"/>
+		<!-- 在空闲时检查有效性, 默认false -->
+		<property name="testWhileIdle" value="true"/>
+		<!-- 连接耗尽时是否阻塞, false报异常,ture阻塞直到超时, 默认true -->
+		<property name="blockWhenExhausted" value="false"/>
+	</bean>
+	
+	<!-- redis单机通过连接池不是集群的连接池 -->
+	<bean id="jedisPool" class="redis.clients.jedis.JedisPool" destroy-method="close">
+		<constructor-arg name="poolConfig" ref="jedisPoolConfig"/>
+		<constructor-arg name="host" value="192.168.183.128"/>
+		<constructor-arg name="port" value="6379"/>
+	</bean>
+	
+	
+	
+	
+	
+	
+</beans>
